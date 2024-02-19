@@ -66,6 +66,11 @@ myhtml <- function(summaryM_object, caption){
   )
 }
 
+# color blind friendly color palette 
+cbp1 <- c("#56B4E9", "#009E73", "#999999", "#E69F00", 
+          "#CC79A7", "#F0E442", "#0072B2", "#D55E00")
+
+
 ## Set Working Directory
 setwd("~/School/Spring 2024/Collab II/Project/Analysis Report")
 
@@ -193,58 +198,210 @@ myhtml(tb1, caption = "Table 1: Patient Characteristics by Follow-Up Cohort")
 
 
 
-# EDA
+# Descriptives of Outcomes
+
+```{r table 2}
+tb2_df <- 
+  full_join(fu_3mo_cohort_dat, fu_12mo_cohort_dat) %>% 
+  mutate(fu.period = factor(fu.period, levels = c("3 Month", "12 Month"), ordered = T)) %>% 
+  select(c(1:3, 35:40))
+
+
+# assign nice variable labels
+label(tb2_df$rbans.global.score) <- "RBANS Global Composite Score"
+label(tb2_df$trail.b.tscore) <- "Trails B T-Score"
+label(tb2_df$adl.totscore) <- "Katz (ADLs) Total Score"
+label(tb2_df$faq.totscore) <- "FAQ (iADLs) Total Score"
+label(tb2_df$sf36.pcs) <- "SF-36 Physical Component Score"
+label(tb2_df$sf36.mcs) <- "SF-36 Mental Component Score                          "
+
+
+## LHS of table 2 in summaryM function
+tb2_lhs <- "rbans.global.score + trail.b.tscore + adl.totscore + faq.totscore + sf36.pcs + sf36.mcs"
+
+tb2 <- summaryM(as.formula(paste(tb2_lhs, "fu.period", sep = " ~ ")),
+                 data = tb2_df)
+
+## Print table
+myhtml(tb2, caption = "Table 2: Outcomes by Follow-Up Cohort")
+```
+
+
+
+# Exploratory Data Analysis
 
 ## Independent Variables
-Descriptions from SAP:
 
-*	Rural-Urban Commuting Areas (RUCA) Codes [will need to download this and link to FIPS code (geoid) from the data]
+*	Rural-Urban Commuting Areas (RUCA) Codes
     +	Classification from 1 (most urban) to 10 (most rural)
     +	Constructs: metropolitan/micropolitan/small town/rural characteristics; commuting flows 
-*	Area Deprivation Index (ADI) [will need to download this from the ADI webpage at the census tract level]
+*	Area Deprivation Index (ADI)
     +	Census block groups scoring from 1 (least disadvantaged) to 100 (most disadvantaged)
     +	Constructs in ADI: education, employment status, median family income, income disparity, median home value, median monthly mortgage or rent, owner-occupied housing, single parent households, households without motor vehicle or telephone, housing without plumbing, housing with more than 1 person per room
     +	A patient’s primary address can be linked to a census block using the Census Geocoder tool and then linked to an ADI score
 *	RUCA*ADI Interaction Term
 
 
-```{r Indep Vars EDA}
+```{r Indep Vars create plots}
+# RUCA codes bar plot
+p_ruca <- 
+  tb1_dat %>% 
+  drop_na() %>% 
+  ggplot(aes(x = `RUCA Primary Code 2000`)) + 
+  geom_bar(color=cbp1[1], fill=cbp1[1] ) + 
+  theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+        legend.position="none",
+        plot.title = element_text(size=12)) + 
+  ggtitle("RUCA Codes") + 
+  xlab("") 
 
+
+p_adi <- 
+  tb1_dat %>% 
+  drop_na(ADI_NATRANK) %>% 
+  mutate(ADI_NATRANK = as.numeric(ADI_NATRANK)) %>% 
+  filter(fu.period != "0 Month") %>% 
+  ggplot(aes(x = ADI_NATRANK)) + 
+  geom_histogram(binwidth = 5, color=cbp1[1], fill=cbp1[1] ) + 
+  theme_minimal() + 
+  theme(plot.title = element_text(size=12)) + 
+  ggtitle("National ADI Score") + 
+  xlab("")
+
+```
+
+```{r Indep Vars arrange plots, fig.width=10, fig.height=4}
+grid.arrange(p_ruca, p_adi, 
+             ncol = 2, nrow = 1)
 ```
 
 
 
 ## Dependent Variables
-Descriptions from SAP:
 
-*	RBANS at 3 and 12 months [rbans.global.score by fu.period]
-*	Trails B at 3 and 12 months [trail.b.tscore by fu.period]n
-*	Katz (ADLs) at 3 and 12 months [adl.totscore by fu.period]
-*	FAQ (iADLs) at 3 and 12 months [faq.totscore by fu.period]
+*	RBANS at 3 and 12 months
+*	Trails B at 3 and 12 months
+*	Katz (ADLs) at 3 and 12 months
+*	FAQ (iADLs) at 3 and 12 months
 *	SF-36 at 3 and 12 months
-    +	PCS [sf36.pcs by fu.period]
-    +	MCS [sf36.mcs by fu.period]
+    +	PCS
+    +	MCS
 
 
-```{r Dep Vars EDA}
+```{r Dep Vars (outcomes) create plots}
+# RBANS boxplot
+p_rbans <- 
+  tb2_df %>% 
+  ggplot(aes(x = fu.period, y = rbans.global.score, fill = fu.period)) + 
+  geom_boxplot() + 
+  theme_minimal() + 
+  scale_fill_manual(values = cbp1) +
+    theme(
+      legend.position="none",
+      plot.title = element_text(size=12)
+    ) +
+    ggtitle("RBANS Global Score") +
+    xlab("Follow-up Cohorts")
+
+
+# Trails B boxplot
+p_trailsB <- 
+  tb2_df %>% 
+  ggplot(aes(x = fu.period, y = trail.b.tscore, fill = fu.period)) + 
+  geom_boxplot() + 
+  theme_minimal() + 
+  scale_fill_manual(values = cbp1) +
+    theme(
+      legend.position="none",
+      plot.title = element_text(size=12)
+    ) +
+    ggtitle("Trails B T-Score") +
+    xlab("Follow-up Cohorts")
+
+
+# Katz boxplot
+p_katz <- 
+  tb2_df %>% 
+  ggplot(aes(x = fu.period, y = adl.totscore, fill = fu.period)) + 
+  geom_boxplot() + 
+  theme_minimal() + 
+  scale_fill_manual(values = cbp1) +
+    theme(
+      legend.position="none",
+      plot.title = element_text(size=12)
+    ) +
+    ggtitle("Katz Total Score") +
+    xlab("Follow-up Cohorts")
+
+
+# FAQ boxplot
+p_faq <- 
+  tb2_df %>% 
+  ggplot(aes(x = fu.period, y = faq.totscore, fill = fu.period)) + 
+  geom_boxplot() + 
+  theme_minimal() + 
+  scale_fill_manual(values = cbp1) +
+    theme(
+      legend.position="none",
+      plot.title = element_text(size=12)
+    ) +
+    ggtitle("FAQ Total Score") +
+    xlab("Follow-up Cohorts")
+
+
+# SF-36 PCS boxplot
+p_sf36_pcs <- 
+  tb2_df %>% 
+  ggplot(aes(x = fu.period, y = sf36.pcs, fill = fu.period)) + 
+  geom_boxplot() + 
+  theme_minimal() + 
+  scale_fill_manual(values = cbp1) +
+    theme(
+      legend.position="none",
+      plot.title = element_text(size=12)
+    ) +
+    ggtitle("SF-36 Physical Component Score") +
+    xlab("Follow-up Cohorts")
+
+
+# SF-36 MCS boxplot
+p_sf36_mcs <- 
+  tb2_df %>% 
+  ggplot(aes(x = fu.period, y = sf36.mcs, fill = fu.period)) + 
+  geom_boxplot() + 
+  theme_minimal() + 
+  scale_fill_manual(values = cbp1) +
+    theme(
+      legend.position="none",
+      plot.title = element_text(size=12)
+    ) +
+    ggtitle("SF-36 Mental Component Score") +
+    xlab("Follow-up Cohorts")
+
 
 ```
 
+```{r Dep Vars (outcomes) arrange plots, fig.width=12, fig.height=9}
+grid.arrange(p_rbans, p_trailsB, p_katz, p_faq, p_sf36_pcs, p_sf36_pcs, 
+             ncol = 3, nrow = 2)
+```
+
+
 
 ## Pre-Specified Covariates
-Descriptions from SAP:
 
-*	Age (restricted cubic splines) [age.enroll]
-*	Charlson Comorbidity Index [charlson.score]
-*	IQCODE (for cognitive outcomes models) [iqcode.score.e]
-*	Baseline Katz (for disability models) [adl.e]
-*	Baseline FAQ (for disability models) [faq.e]
-*	Mean Modified Daily SOFA [sofa.mod]
-*	Days of Delirium/Coma [delcoma.s.imp]
-*	Days of Mechanical Ventilation [vent.los.tot.s]
-*	Education [edu]
-*	Sex [sex.pp]
-*	Hospital Type (VA versus Civilian) [14001 onwards - VA patients]
+*	Age
+*	Charlson Comorbidity Index
+*	IQCODE (for cognitive outcomes models)
+*	Baseline Katz (for disability models)
+*	Baseline FAQ (for disability models)
+*	Mean Modified Daily SOFA
+*	Days of Delirium/Coma
+*	Days of Mechanical Ventilation
+*	Education
+*	Sex
+*	Hospital Type (VA versus Civilian)
 
 
 ```{r Pre-Specified Covars EDA}
@@ -328,37 +485,6 @@ Imputation of 94 missing geoids/RUCA/ADI?
 
 
 ```
-
-
-# Descriptives of Outcomes
-
-```{r table 2}
-tb2_df <- 
-  full_join(fu_3mo_cohort_dat, fu_12mo_cohort_dat) %>% 
-  mutate(fu.period = factor(fu.period, levels = c("3 Month", "12 Month"), ordered = T)) %>% 
-  select(c(1:3, 35:40))
-
-
-# assign nice variable labels
-label(tb2_df$rbans.global.score) <- "RBANS Global Composite Score"
-label(tb2_df$trail.b.tscore) <- "Trails B T-Score"
-label(tb2_df$adl.totscore) <- "Katz (ADLs) Total Score"
-label(tb2_df$faq.totscore) <- "FAQ (iADLs) Total Score"
-label(tb2_df$sf36.pcs) <- "SF-36 Physical Component Score"
-label(tb2_df$sf36.mcs) <- "SF-36 Mental Component Score                          "
-
-
-## LHS of table 2 in summaryM function
-tb2_lhs <- "rbans.global.score + trail.b.tscore + adl.totscore + faq.totscore + sf36.pcs + sf36.mcs"
-
-tb2 <- summaryM(as.formula(paste(tb2_lhs, "fu.period", sep = " ~ ")),
-                 data = tb2_df)
-
-## Print table
-myhtml(tb2, caption = "Table 2: Outcomes by Follow-Up Cohort")
-```
-
-
 
 
 # Model Associations
